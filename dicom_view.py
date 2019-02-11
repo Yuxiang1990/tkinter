@@ -1,0 +1,85 @@
+import tkinter as tk
+import os
+import tkinter.messagebox
+from DN_tool.Dcm_Series import Series
+from numpy import clip, uint8
+from PIL import Image, ImageTk
+window = tk.Tk()
+window.title("Dn tools v1.0.0 (design by yuxiang)")
+window.geometry("600x400")
+
+
+class dicom_viewer():
+    def __init__(self):
+        self.min_hu = tk.IntVar()
+        self.min_hu.set(-1000)
+        self.max_hu = tk.IntVar()
+        self.max_hu.set(400)
+        self.dicompath = tk.StringVar()
+        self.dicominfo = tk.StringVar()
+        self.dicompath.set("input dicom path")
+        self.dcm_viewer_win = tk.Toplevel()
+        self.dcm_viewer_win.geometry("800x800")
+        self.dcm_viewer_win.title("Dicom viewer")
+        tk_label = tk.Label(self.dcm_viewer_win, text="Dicom 路径:")
+        tk_label.place(x=50, y=20, anchor='center')
+
+        tk_label = tk.Label(self.dcm_viewer_win, textvariable=self.dicominfo)
+        tk_label.place(x=50, y=70)
+
+        tk_path = tk.Entry(self.dcm_viewer_win, textvariable=self.dicompath, width=80)
+        tk_path.place(x=400, y=20, anchor='center')
+
+        tk_btm = tk.Button(self.dcm_viewer_win, text="确定", command=self.getarr)
+        tk_btm.place(x=400, y=50, anchor='center')
+
+        self.canvas = tk.Canvas(self.dcm_viewer_win, height=512, width=512)
+        self.canvas.place(x=390, y=390, anchor='center')
+
+    def norm(self, png):
+        _min_hu = self.min_hu.get()
+        _max_hu = self.max_hu.get()
+        png = clip(png, _min_hu, _max_hu)
+        png = (png - png.min()) / (png.max() - png.min())
+        return (png * 255).astype(uint8)
+
+    def getarr(self):
+        if not os.path.exists(self.dicompath.get()):
+            tkinter.messagebox.showerror(title='Error', message='Exception happen, Pls check path.')
+        else:
+            ds = Series([self.dicompath.get()])
+            self.dicom_arr = ds.Dcm_series_arr
+            self.dicominfo.set("dicom info (space={} sizezyx={})".format(ds.Dcm_series_spacing, ds.Dcm_series_size))
+            tk_scale = tk.Scale(self.dcm_viewer_win, label='Adjust Z', from_=0, to=self.dicom_arr.shape[0] - 1, orient=tk.VERTICAL,
+                                length=400, showvalue=1, tickinterval=2, resolution=1, command=self.draw)
+            tk_scale.place(x=650, y=50)
+            tk.Label(self.dcm_viewer_win, text="min_hu:").place(y=660, x=160)
+            tk.Label(self.dcm_viewer_win, text="max_hu:").place(y=660, x=400)
+            tk.Entry(self.dcm_viewer_win, textvariable=self.min_hu, width=8).place(y=660, x=220)
+            tk.Entry(self.dcm_viewer_win, textvariable=self.max_hu, width=8).place(y=660, x=460)
+
+    def draw(self, z):
+        try:
+            png = self.dicom_arr[int(z)]
+            png = self.norm(png)
+            # png = cv2.resize(png, (500, 500))
+            # cv2.imwrite("tmp.png", png)
+        except:
+            tkinter.messagebox.showerror(title='Error', message='path not exist, pls check!')
+        # image_file = tk.PhotoImage(file='tmp.png')
+        self.image_file = ImageTk.PhotoImage(Image.fromarray(png))
+        self.canvas.create_image(0, 0, anchor='nw', image=self.image_file)
+
+memubar = tk.Menu(window)
+filemenu = tk.Menu(memubar, tearoff=0)
+memubar.add_cascade(label='Tools', menu=filemenu)
+filemenu.add_command(label='dicom_viewer', command=dicom_viewer)
+window.config(menu=memubar)
+# welcome image
+welcome = "Welcome to DN Tools"
+tk.Label(window, text=welcome, fg='blue', font=('Italics', 30, 'bold')).place(x=300, y=50, anchor='center')
+
+func1 = "1.tool->dicom_viewer, used for view dicom;"
+tk.Label(window, text=func1, font=('Italics', 16)).place(y=150, x=10)
+
+window.mainloop()
