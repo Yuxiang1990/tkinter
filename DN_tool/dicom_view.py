@@ -17,10 +17,12 @@ class dicom_viewer():
         self.max_hu.set(400)
         self.dicompath = tk.StringVar()
         self.dicominfo = tk.StringVar()
+        self.coordzyx = tk.StringVar()
         self.dicompath.set("input dicom path")
         self.dcm_viewer_win = tk.Toplevel()
         self.dcm_viewer_win.geometry("800x800")
         self.dcm_viewer_win.title("Dicom viewer")
+        self.z = 0
         tk_label = tk.Label(self.dcm_viewer_win, text="Dicom 路径:")
         tk_label.place(x=50, y=20, anchor='center')
 
@@ -35,6 +37,8 @@ class dicom_viewer():
 
         self.canvas = tk.Canvas(self.dcm_viewer_win, height=512, width=512)
         self.canvas.place(x=390, y=390, anchor='center')
+        self.canvas.config(scrollregion=self.canvas.bbox("all"))
+        self.canvas.bind("<Button 1>", self.callback)
 
     def norm(self, png):
         _min_hu = self.min_hu.get()
@@ -49,17 +53,19 @@ class dicom_viewer():
         else:
             ds = Series([self.dicompath.get()])
             self.dicom_arr = ds.Dcm_series_arr
-            self.dicominfo.set("dicom info (space={} sizezyx={})".format(ds.Dcm_series_spacing, ds.Dcm_series_size))
+            self.dicominfo.set("dicominfo (space={} sizezyx={})".format(ds.Dcm_series_spacing, ds.Dcm_series_size))
             tk_scale = tk.Scale(self.dcm_viewer_win, label='Adjust Z', from_=0, to=self.dicom_arr.shape[0] - 1, orient=tk.VERTICAL,
                                 length=400, showvalue=1, tickinterval=2, resolution=1, command=self.draw)
-            tk_scale.place(x=650, y=50)
+            tk_scale.place(x=700, y=50)
             tk.Label(self.dcm_viewer_win, text="min_hu:").place(y=660, x=160)
             tk.Label(self.dcm_viewer_win, text="max_hu:").place(y=660, x=400)
             tk.Entry(self.dcm_viewer_win, textvariable=self.min_hu, width=8).place(y=660, x=220)
             tk.Entry(self.dcm_viewer_win, textvariable=self.max_hu, width=8).place(y=660, x=460)
+            tk.Label(self.dcm_viewer_win, textvariable=self.coordzyx, bg='black', fg='white').place(y=140, x=500)
 
     def draw(self, z):
         try:
+            self.z = int(z)
             png = self.dicom_arr[int(z)]
             png = self.norm(png)
             # png = cv2.resize(png, (500, 500))
@@ -69,6 +75,12 @@ class dicom_viewer():
         # image_file = tk.PhotoImage(file='tmp.png')
         self.image_file = ImageTk.PhotoImage(Image.fromarray(png))
         self.canvas.create_image(0, 0, anchor='nw', image=self.image_file)
+
+    def callback(self, event):
+        x = self.canvas.canvasx(event.x)
+        y = self.canvas.canvasx(event.y)
+        self.coordzyx.set("z:{} y:{} x:{}".format(self.z, int(y), int(x)))
+
 
 memubar = tk.Menu(window)
 filemenu = tk.Menu(memubar, tearoff=0)
