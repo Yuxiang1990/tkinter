@@ -1,9 +1,11 @@
-import tkinter as tk
 import os
+import tkinter as tk
 import tkinter.messagebox
-from DN_tool.Dcm_Series import Series
-from numpy import clip, uint8
+
 from PIL import Image, ImageTk
+from numpy import clip, uint8
+
+from DN_tool.lib.Dcm_Series import Series
 
 
 class dicom_viewer():

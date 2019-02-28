@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>CreedAI</title>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="static/bootstrap.css" rel="stylesheet">
+    <link href="static/cropper.min.css" rel="stylesheet">
+    <script src="static/vue.js"></script>
+    <script src="static/vue-resource.js"></script>
+    <script src="static/cropper.min.js"></script>
+    <link href="static/favicon.ico" rel="icon" type="image/x-icon" />
+
+</head>
+
+
+<body>
+
+    <h1 align="center">lungTag <small>(Use ← → for different slice)</small> </h1>
+
+    <div class="container" id="app" style="width:100%;min-height:700px">
+        <div class="row">
+            <div class="col-xs-4" align="center">
+                <div class='row'>
+                    <h4>
+                        <label>Viewing:</label>
+                        <select v-model="imgFlag"><option v-for="field in fields">{{field}}</option></select>
+                        <label>@</label>
+                        <input v-model="imgIndex" size='3'> / {{totalSlice}}
+                    </h4>
+                </div>
+                <div class='row' style='width:300px;height:300px'>
+                    <img src="" id="image" style='max-width: 100%;'>
+                </div>
+
+                <div class='row'>
+                    <h3 align="left">RoIs <small>(select to crop)</small></h3>
+                    <div style="max-height: 250px; overflow: auto;">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr class='active'>
+                                    <th class="text-center">#</th>
+                                    <th class="text-center">Z</th>
+                                    <th class="text-center">Y</th>
+                                    <th class="text-center">X</th>
+                                    <th class="text-center">Proba</th>
+                                    <th class="text-center">isNodule</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(roi,i) in rois" v-on:click="cropRoi(roi,i)" v-bind:class="{ warning: i==roiSelected}">
+                                    <td class="text-center">{{i+1}}</td>
+                                    <td class="text-center">{{(roi.z).toFixed(2)}}</td>
+                                    <td class="text-center">{{(roi.y).toFixed(2)}}</td>
+                                    <td class="text-center">{{(roi.x).toFixed(2)}}</td>
+                                    <td class="text-center">{{(roi.p).toFixed(6)}}</td>
+                                    <td class="text-center">
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn-xs" v-bind:class="{ 'btn-primary': roi.tag=='pass'}" v-on:click="changeTag(i,'pass')">Pass</button>
+                                            <button type="button" class="btn-xs" v-bind:class="{ 'btn-primary': roi.tag=='yes'}" v-on:click="changeTag(i,'yes')">Yes</button>
+                                            <button type="button" class="btn-xs" v-bind:class="{ 'btn-primary': roi.tag=='no'}" v-on:click="changeTag(i,'no')">No</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class='row' v-show="roiSelected!=-1">
+                    <div class="col-xs-4"></div>
+                    <div class="col-xs-4">Enlarge the box</div>
+                    <div class="col-xs-4">
+                        <input type="range" v-model="resizeRatio" min="10" max="100" step="1">
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="col-xs-8" align="center" v-show="bboxShow">
+                <div class="row"><br><br><br></div>
+                <div class="row">
+                    <img v-bind:src="croppedURL" class="img-rounded" style="max-height:1000px">
+                </div>
+                <div class="row">
+                    <p>
+                        Left: {{Math.round(cropPos.left)}} Top: {{Math.round(cropPos.top)}} Width: {{Math.round(cropPos.width)}} Height: {{Math.round
+                        (cropPos.height)}}
+                    </p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <div class="row">
+                <div class="col-xs-12">
+                    <h3 align="center">
+                        © Copyright 2017 LAB518 CreedAI
+                    </h3>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        const imgHeight = 300; //<div class="col-xs-4" style='width:300px;height:300px'>
+        const imgWidth = 300;
+        const app = new Vue({
+            el: '#app',
+            data: {
+                bboxShow: true,
+                imgIndex: 1,
+                croppedURL: '',
+                cropPos: {},
+                fields: [],
+                imgFlag: "",
+                totalSlice: 0,
+                originWidth: 0,
+                originHeight: 0,
+                rois: [],
+                roiSelected: -1,
+                resizeRatio: 10
+            },
+            watch: {
+                imgFlag: function (val) {
+                    cropper.replace(val + "/" + (this.imgIndex - 1));
+                    this.$http.get('info/' + val).then(
+                        function (res) {
+                            this.totalSlice = res.body.depth - 0;
+                            this.originHeight = res.body.height - 0;
+                            this.originWidth = res.body.width - 0;
+                            this.rois = res.body.roi;
+                            this.roiSelected = -1;
+                        },
+                        console.log
+                    );
+                },
+                imgIndex: function (val) {
+                    cropper.replace(this.imgFlag + "/" + (val - 1));
+                },
+                resizeRatio: function (val) {
+                    if (this.roiSelected != -1) {
+                        this.cropAt(this.rois[this.roiSelected].z,
+                            this.rois[this.roiSelected].y,
+                            this.rois[this.roiSelected].x,
+                            this.rois[this.roiSelected].r * val / 10.);
+                    } else {
+                        this.resizeRatio = 10;
+                    }
+                }
+            },
+            created: function () {
+                console.log("READY");
+                this.$http.get('info/').then(
+                    function (res) {
+                        this.fields = res.body.fields;
+                        this.imgFlag = this.fields[0];
+                    },
+                    console.log
+                );
+            },
+            methods: {
+                keyHandler: function (keycode) {
+                    // keycode: LEFT = 37, UP = 38, RIGHT = 39, DOWN = 40
+                    if ((keycode == 37) | (keycode == 38)) {
+                        this.imgIndex -= 1;
+                        if (this.imgIndex <= 0) {
+                            this.imgIndex += this.totalSlice;
+                        }
+                    } else if ((keycode == 39) | (keycode == 40)) {
+                        this.imgIndex = this.imgIndex - 0 + 1;
+                        if (this.imgIndex > this.totalSlice) {
+                            this.imgIndex = 1;
+                        }
+                    } else {
+                        cropper.clear();
+                        this.bboxShow = false;
+                        this.roiSelected = -1;
+                        this.resizeRatio = 10;
+                    }
+                },
+                cropAt: function (z, y, x, r) {
+                    // for Cropper.js there is no need to round
+                    // this_left = Math.round((x - r) / this.originWidth * imgWidth);
+                    // this_top = Math.round((y - r) / this.originHeight * imgHeight);
+                    // this_width = Math.round(2 * r / this.originWidth * imgWidth);
+                    // this_height = Math.round(2 * r / this.originHeight * imgHeight);
+
+                    this_left = (x - r) / this.originWidth * imgWidth;
+                    this_top = (y - r) / this.originHeight * imgHeight;
+                    this_width = 2 * r / this.originWidth * imgWidth;
+                    this_height = 2 * r / this.originHeight * imgHeight;
+
+                    this.imgIndex = Math.round(z);
+                    cropper.setCropBoxData({
+                        left: this_left,
+                        top: this_top,
+                        width: this_width,
+                        height: this_height
+                    });
+                },
+                cropRoi: function (roi, i) {
+                    this.cropAt(roi.z, roi.y, roi.x, roi.r);
+                    this.roiSelected = i;
+                    this.resizeRatio = 10;
+                    // console.log(i);
+                },
+                changeTag: function (i, tag) {
+                    this.rois[i].tag = tag;
+                    console.log(tag);
+                    this.$http.post('/rois/' + this.imgFlag + '/' + i, { tag: tag }).then(
+                        console.log, console.log
+                    );
+                }
+            },
+
+        });
+
+        const image = document.getElementById('image');
+        const cropper = new Cropper(image, {
+            autoCrop: true,
+            autoCropArea: 1,
+            aspectRatio: 1,
+            movable: false,
+            zoomable: false,
+            rotatable: false,
+            scalable: false,
+            crop: function (e) {
+                const canvas = cropper.getCroppedCanvas({
+                    width: 600,
+                    height: 600
+                });
+                app.croppedURL = canvas.toDataURL();
+                app.cropPos = cropper.getCropBoxData();
+                app.bboxShow = true;
+                // console.log(cropper.getCropBoxData());
+            },
+            ready: function (e) {
+                cropper.setCropBoxData(app.cropPos);
+            },
+        });
+
+        document.body.addEventListener('keydown', e => app.keyHandler(e.keyCode));
+    </script>
+
+
+</body>
+
+</html>

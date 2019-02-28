@@ -1,18 +1,18 @@
-import tkinter as tk
 import os
+import tkinter as tk
 import tkinter.messagebox
+
+import numpy as np
 from PIL import ImageTk, Image
+
 from DN_tool.lib.nii2plot_v1 import nii_draw
 from DN_tool.lib.nrrd2plot_v1 import nrrd_draw
-import numpy as np
 
 
 class draw_contours:
     def __init__(self):
         self.shape = 500
         self.canvas_max = 2000
-        self.nii_cmd = "python -m DN_tool.nii2plot_v1 -niimask %s -nii %s -o %s"
-        self.nrrd_cmd = "python -m DN_tool.nrrd2plot_v1 -nrrd %s -nii %s -o %s"
 
         self.draw_contour_win = tk.Toplevel()
         self.draw_contour_win.geometry("800x800")
