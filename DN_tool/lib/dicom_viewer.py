@@ -4,9 +4,6 @@ import tkinter.messagebox
 from DN_tool.Dcm_Series import Series
 from numpy import clip, uint8
 from PIL import Image, ImageTk
-window = tk.Tk()
-window.title("Dn tools v1.0.0 (design by yuxiang)")
-window.geometry("600x400")
 
 
 class dicom_viewer():
@@ -80,18 +77,3 @@ class dicom_viewer():
         x = self.canvas.canvasx(event.x)
         y = self.canvas.canvasx(event.y)
         self.coordzyx.set("z:{} y:{} x:{}".format(self.z, int(y), int(x)))
-
-
-memubar = tk.Menu(window)
-filemenu = tk.Menu(memubar, tearoff=0)
-memubar.add_cascade(label='Tools', menu=filemenu)
-filemenu.add_command(label='dicom_viewer', command=dicom_viewer)
-window.config(menu=memubar)
-# welcome image
-welcome = "Welcome to DN Tools"
-tk.Label(window, text=welcome, fg='blue', font=('Italics', 30, 'bold')).place(x=300, y=50, anchor='center')
-
-func1 = "1.tool->dicom_viewer, used for view dicom;"
-tk.Label(window, text=func1, font=('Italics', 16)).place(y=150, x=10)
-
-window.mainloop()
