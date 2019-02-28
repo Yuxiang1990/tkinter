@@ -82,6 +82,7 @@ class check_nodule():
                 continue
             self.server.serve(field=uid, data=data, roi=roi)
         self.server.run(port=int(self.port.get()))
+        tkinter.messagebox.showinfo(title='Info', message="please run `http://localhost:{port}`")
 
     def uid_to_info(self, uid, df):
         ret = []
@@ -107,13 +108,18 @@ class check_nodule():
         return data, ret
 
     def save(self):
-        port = int(self.port.get())
-        out = self.outpath.get()
-        now = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
-        with urllib.request.urlopen('http://localhost:{}/rois/'.format(port)) as j:
-            lst = json.loads(j.read().decode('utf-8'))['rois']
-            df = pd.DataFrame(lst, columns=('seriesuid', 'coordX', 'coordY', 'coordZ', 'probability', 'tag'))
-        df.to_csv(os.path.join(out, now + ".csv"),index=None)
+        try:
+            port = int(self.port.get())
+            out = self.outpath.get()
+            now = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+            with urllib.request.urlopen('http://localhost:{}/rois/'.format(port)) as j:
+                lst = json.loads(j.read().decode('utf-8'))['rois']
+                df = pd.DataFrame(lst, columns=('seriesuid', 'coordX', 'coordY', 'coordZ', 'probability', 'tag'))
+            df.to_csv(os.path.join(out, now + ".csv"),index=None)
+            tkinter.messagebox.showinfo(title='Info', message='save success')
+
+        except:
+            tkinter.messagebox.showerror(title='Error', message='save error, pls check')
 
     def stop(self):
         self.server.reset()
