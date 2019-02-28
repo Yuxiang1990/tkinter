@@ -10,6 +10,7 @@ import numpy as np
 class draw_contours:
     def __init__(self):
         self.shape = 500
+        self.canvas_max = 2000
         self.nii_cmd = "python -m DN_tool.nii2plot_v1 -niimask %s -nii %s -o %s"
         self.nrrd_cmd = "python -m DN_tool.nrrd2plot_v1 -nrrd %s -nii %s -o %s"
 
@@ -36,11 +37,20 @@ class draw_contours:
         tk_btm = tk.Button(self.draw_contour_win, text="生成边缘勾勒", bg='green', fg='red',
                            font=('Helvetica', 20), command=self.draw)
         tk_btm.place(x=400, y=200, anchor='center')
-        self.canvas = tk.Canvas(self.draw_contour_win, relief='raised', bg='black', height=1000, width=1000)
-        self.canvas.config(scrollregion=self.canvas.bbox("all"))
+        self.canvas = tk.Canvas(self.draw_contour_win, relief='raised', bg='black', height=800, width=1000)
+        # self.canvas.config(scrollregion=self.canvas.bbox("all"))
+        self.canvas.config(scrollregion=(0, 0, self.canvas_max, self.canvas_max))
         self.canvas.place(x=10, y=240, anchor='nw')
         self.image_list = []
         self.index = 0
+        # scrollbar
+        self.vbar = tk.Scrollbar(self.draw_contour_win, orient=tk.VERTICAL, bg='#87CEFA')
+        self.vbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.vbar.config(command=self.canvas.yview)
+        self.hbar = tk.Scrollbar(self.draw_contour_win, orient=tk.HORIZONTAL, bg='#87CEFA')
+        self.hbar.pack(side=tk.BOTTOM, fill=tk.X)
+        self.hbar.config(command=self.canvas.xview)
+        self.canvas.config(yscrollcommand=self.vbar.set, xscrollcommand=self.hbar.set)
 
     def draw(self):
         if not os.path.exists(self.niistr.get()):
@@ -63,7 +73,7 @@ class draw_contours:
         b = Image.fromarray(png[..., 2]).convert("L")
         self.image_list.append(ImageTk.PhotoImage(Image.merge("RGB", (r, g, b)).resize((self.shape, self.shape))))
         # calc canvas_locx and canvas_locy
-        a, v = np.divmod(self.index, 2)
+        a, v = np.divmod(self.index, self.canvas_max // self.shape)
         y = a * self.shape
         x = v * self.shape
         self.canvas.create_image(x, y, anchor='nw', image=self.image_list[self.index])

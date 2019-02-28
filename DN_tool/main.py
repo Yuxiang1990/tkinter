@@ -21,5 +21,7 @@ tk.Label(window, text=welcome, fg='blue', font=('Italics', 30, 'bold')).place(x=
 
 func1 = "1.tool->dicom_viewer, used for view dicom;"
 tk.Label(window, text=func1, font=('Italics', 16)).place(y=150, x=10)
+func1 = "2.tool->draw_contours, used for view draw contours for nii;"
+tk.Label(window, text=func1, font=('Italics', 16)).place(y=200, x=10)
 
 window.mainloop()
