@@ -28,6 +28,8 @@ class dicom_viewer():
 
         self.dicominfo = tk.StringVar()
         self.coordzyx = tk.StringVar()
+        self.coordzyx1 = tk.StringVar()
+
         self.dicompath.set("input dicom path")
         self.dcm_viewer_win = tk.Toplevel()
         self.dcm_viewer_win.geometry("1500x800")
@@ -62,10 +64,17 @@ class dicom_viewer():
         self.lll = tk.Label(self.dcm_viewer_win, text="LLL", bg="#D3D3D3", font="24")
         self.lll.place(x=50, y=280)
 
-        self.canvas = tk.Canvas(self.dcm_viewer_win, height=512, width=1024)
+        self.canvas = tk.Canvas(self.dcm_viewer_win, height=512, width=512)
         self.canvas.place(x=140, y=140, anchor='nw')
         self.canvas.config(scrollregion=self.canvas.bbox("all"))
         self.canvas.bind("<Button 1>", self.callback)
+
+        self.canvas1 = tk.Canvas(self.dcm_viewer_win, height=512, width=512)
+        self.canvas1.place(x=140 + 512, y=140, anchor='nw')
+        self.canvas1.config(scrollregion=self.canvas1.bbox("all"))
+        self.canvas1.bind("<Button 1>", self.callback1)
+
+        self.warning_cnt = 0
 
     def norm(self, png):
         _min_hu = self.min_hu.get()
@@ -75,18 +84,25 @@ class dicom_viewer():
         return (png * 255).astype(uint8)
 
     def getarr(self):
-        if not (os.path.exists(self.dicompath.get()) and os.path.exists(self.maskpath.get())):
+        if not (os.path.exists(self.dicompath.get()) or os.path.exists(self.maskpath.get())):
             tkinter.messagebox.showerror(title='Error', message='Exception happen, Pls check path.')
         else:
             # img|raw|voxel|img_norm
             npzfiles = self.dicompath.get()
-            maskfiles = self.maskpath.get()
-
-            if npzfiles.endswith(".npz"):
-                with load(npzfiles) as f:
-                    string = " ".join(f.files)
-                    self.dicom_arr = f[re.findall("(voxel|raw|img_norm)", string)[0]]
-                    self.dicominfo.set("dicominfo (sizezyx={})".format(self.dicom_arr.shape))
+            try:
+                if npzfiles.endswith(".npz"):
+                    with load(npzfiles) as f:
+                        string = " ".join(f.files)
+                        self.dicom_arr = f[re.findall("(voxel|raw|img_norm)", string)[0]]
+                        self.dicominfo.set("dicominfo (sizezyx={})".format(self.dicom_arr.shape))
+                else:
+                    ds = Series([self.dicompath.get()])
+                    self.dicom_arr = ds.Dcm_series_arr
+                    self.dicominfo.set("dicominfo (space={} sizezyx={})".format(ds.Dcm_series_spacing, ds.Dcm_series_size))
+            except:
+                tkinter.messagebox.showerror(title='Error', message='npzfiles parse failed.')
+            try:
+                maskfiles = self.maskpath.get()
                 with load(maskfiles) as f:
                     string = " ".join(f.files)
                     try:
@@ -99,11 +115,14 @@ class dicom_viewer():
                     self.mask_arr = np.repeat(self.mask_arr[..., np.newaxis].astype(uint8), axis=-1, repeats=3)
                     for k, v in rgb_list.items():
                         self.mask_arr[self.mask_arr[..., 0] == k] = np.array(v)
-            else:
-                ds = Series([self.dicompath.get()])
-                self.dicom_arr = ds.Dcm_series_arr
-                self.dicominfo.set("dicominfo (space={} sizezyx={})".format(ds.Dcm_series_spacing, ds.Dcm_series_size))
-            tk_scale = tk.Scale(self.dcm_viewer_win, label='Adjust Z', from_=0, to=self.dicom_arr.shape[0] - 1, orient=tk.VERTICAL,
+            except:
+                tkinter.messagebox.showerror(title='Error', message='maskfiles parse failed.')
+
+            try:
+                shape = self.dicom_arr.shape
+            except:
+                shape = self.mask_arr.shape
+            tk_scale = tk.Scale(self.dcm_viewer_win, label='Adjust Z', from_=0, to=shape[0] - 1, orient=tk.VERTICAL,
                                 length=400, showvalue=1, tickinterval=2, resolution=1, command=self.draw)
             tk_scale.place(x=1100, y=100)
             tk.Label(self.dcm_viewer_win, text="min_hu:").place(y=660, x=160)
@@ -111,24 +130,42 @@ class dicom_viewer():
             tk.Entry(self.dcm_viewer_win, textvariable=self.min_hu, width=8).place(y=660, x=220)
             tk.Entry(self.dcm_viewer_win, textvariable=self.max_hu, width=8).place(y=660, x=460)
             tk.Label(self.dcm_viewer_win, textvariable=self.coordzyx, bg='black', fg='white').place(y=140, x=500)
+            tk.Label(self.dcm_viewer_win, textvariable=self.coordzyx1, bg='black', fg='white').place(y=140, x=500 + 512)
+
 
     def draw(self, z):
         try:
             self.z = int(z)
             png = self.dicom_arr[int(z)]
             png = self.norm(png)
-            mask = self.mask_arr[int(z)]
-            # png = cv2.resize(png, (500, 500))
-            # cv2.imwrite("tmp.png", png)
         except Exception as e:
-            tkinter.messagebox.showerror(title='Error', message=e)
+            if not self.warning_cnt:
+                self.warning_cnt += 1
+                tkinter.messagebox.showerror(title='Error', message="draw failed, %s" % e)
+        try:
+            mask = self.mask_arr[int(z)]
+        except Exception as e:
+            if not self.warning_cnt:
+                self.warning_cnt += 1
+                tkinter.messagebox.showerror(title='Error', message="draw failed, %s" % e)
         # image_file = tk.PhotoImage(file='tmp.png')
-        self.image_file = ImageTk.PhotoImage(Image.fromarray(png))
-        self.canvas.create_image(0, 0, anchor='nw', image=self.image_file)
-        self.mask_file = ImageTk.PhotoImage(Image.fromarray(mask))
-        self.canvas.create_image(512, 0, anchor='nw', image=self.mask_file)
+        try:
+            self.image_file = ImageTk.PhotoImage(Image.fromarray(png))
+            self.canvas.create_image(0, 0, anchor='nw', image=self.image_file)
+        except:
+            print("draw image failed")
+        try:
+            self.mask_file = ImageTk.PhotoImage(Image.fromarray(mask))
+            self.canvas1.create_image(0, 0, anchor='nw', image=self.mask_file)
+        except:
+            print("draw mask failed")
 
     def callback(self, event):
         x = self.canvas.canvasx(event.x)
         y = self.canvas.canvasx(event.y)
         self.coordzyx.set("z:{} y:{} x:{}".format(self.z, int(y), int(x)))
+
+    def callback1(self, event):
+        x = self.canvas1.canvasx(event.x)
+        y = self.canvas1.canvasx(event.y)
+        self.coordzyx1.set("z:{} y:{} x:{}".format(self.z, int(y), int(x)))
