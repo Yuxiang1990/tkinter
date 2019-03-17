@@ -8,13 +8,13 @@ import numpy as np
 import re
 from DN_tool.lib.Dcm_Series import Series
 
-rgb_list = {4: (70,130,180),
-            5: (152,251,152),
-            6: (255,255,0),
-            7: (255,0,0),
-            8: (211,211,211)}
+rgb_list = {0: (70,130,180),
+            1: (152,251,152),
+            2: (255,255,0),
+            3: (255,0,0),
+            4: (211,211,211)}
 
-rgb_description = {4: "RUL", 5: "RML", 6: "RLL", 7: "LUL", 8: "LLL"}
+rgb_description = {0: "4:RUL", 1: "5:RML", 2: "6:RLL", 3: "7:LUL", 4: "8:LLL"}
 
 
 class dicom_viewer():
@@ -53,15 +53,15 @@ class dicom_viewer():
         tk_btm = tk.Button(self.dcm_viewer_win, text="确定", command=self.getarr)
         tk_btm.place(x=400, y=50, anchor='center')
         # lobe description
-        self.rul = tk.Label(self.dcm_viewer_win, text="RUL", bg="#4682B4", font="24")
+        self.rul = tk.Label(self.dcm_viewer_win, text="4:RUL", bg="#4682B4", font="24")
         self.rul.place(x=50, y=200)
-        self.rml = tk.Label(self.dcm_viewer_win, text="RML", bg="#98FB98", font="24")
+        self.rml = tk.Label(self.dcm_viewer_win, text="5:RML", bg="#98FB98", font="24")
         self.rml.place(x=50, y=220)
-        self.rll = tk.Label(self.dcm_viewer_win, text="RLL", bg="#FFFF00", font="24")
+        self.rll = tk.Label(self.dcm_viewer_win, text="6:RLL", bg="#FFFF00", font="24")
         self.rll.place(x=50, y=240)
-        self.lul = tk.Label(self.dcm_viewer_win, text="LUL", bg="#FF0000", font="24")
+        self.lul = tk.Label(self.dcm_viewer_win, text="7:LUL", bg="#FF0000", font="24")
         self.lul.place(x=50, y=260)
-        self.lll = tk.Label(self.dcm_viewer_win, text="LLL", bg="#D3D3D3", font="24")
+        self.lll = tk.Label(self.dcm_viewer_win, text="8:LLL", bg="#D3D3D3", font="24")
         self.lll.place(x=50, y=280)
 
         self.canvas = tk.Canvas(self.dcm_viewer_win, height=512, width=512)
@@ -105,18 +105,24 @@ class dicom_viewer():
                 maskfiles = self.maskpath.get()
                 with load(maskfiles) as f:
                     string = " ".join(f.files)
-                    try:
-                        self.mask_arr = f[re.findall("\w*mask\w*", string)[0]]
-                    except:
-                        self.mask_arr = f[re.findall("\w*voxel\w*", string)[0]]
+                    if 'seg' in f.files:
+                        self.mask_arr = f['seg']
+                    else:
+                        self.mask_arr = f[re.findall("(\w*mask|voxel)", string)[0]]
                 if len(unique(self.mask_arr)) == 2:
                     self.mask_arr = self.mask_arr.astype(uint8) * 255
                 else:
                     self.mask_arr = np.repeat(self.mask_arr[..., np.newaxis].astype(uint8), axis=-1, repeats=3)
-                    for k, v in rgb_list.items():
-                        self.mask_arr[self.mask_arr[..., 0] == k] = np.array(v)
-            except:
-                tkinter.messagebox.showerror(title='Error', message='maskfiles parse failed.')
+                    # lobe mask, nodule mask
+                    labels = np.unique(self.mask_arr).tolist()
+                    labels.remove(0)
+                    print(labels)
+                    for label in labels:
+                        remain = (label + 1) % 5
+                        self.mask_arr[self.mask_arr[..., 0] == label] = np.array(rgb_list[remain])
+
+            except Exception as e:
+                tkinter.messagebox.showerror(title='Error', message='maskfiles parse failed. %s' % e)
 
             try:
                 shape = self.dicom_arr.shape
