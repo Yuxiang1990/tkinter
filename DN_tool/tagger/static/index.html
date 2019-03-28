@@ -12,7 +12,12 @@
     <script src="static/vue-resource.js"></script>
     <script src="static/cropper.min.js"></script>
     <link href="static/favicon.ico" rel="icon" type="image/x-icon" />
-
+    <style>
+        .next-button{
+            position: relative;
+            top: -100px;
+        }
+    </style>
 </head>
 
 
@@ -93,6 +98,7 @@
             </div>
 
         </div>
+        <button class="next-button" @click="nextHanler">next(Q)</button>
     </div>
 
     <footer>
@@ -165,8 +171,17 @@
                 );
             },
             methods: {
+                nextHanler: function () {
+                    const imgFlag = this.imgFlag;
+                    let index = this.fields.indexOf(imgFlag);
+                    this.imgFlag = this.fields[++index];
+                },
                 keyHandler: function (keycode) {
-                    // keycode: LEFT = 37, UP = 38, RIGHT = 39, DOWN = 40
+                    // keycode: LEFT = 37, UP = 38, RIGHT = 39, DOWN = 40, Q = 81;
+                    if(keycode == 81){
+                        this.nextHanler();
+                        return;
+                    }
                     if ((keycode == 37) | (keycode == 38)) {
                         this.imgIndex -= 1;
                         if (this.imgIndex <= 0) {
