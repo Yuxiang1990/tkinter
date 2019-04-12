@@ -177,9 +177,21 @@
                     this.imgFlag = this.fields[++index];
                 },
                 keyHandler: function (keycode) {
-                    // keycode: LEFT = 37, UP = 38, RIGHT = 39, DOWN = 40, Q = 81;
+                    // keycode: LEFT = 37, UP = 38, RIGHT = 39, DOWN = 40, Q = 81;Y = 89; N = 78; p = 80;
                     if(keycode == 81){
                         this.nextHanler();
+                        return;
+                    }
+                    if(keycode == 89){
+                        this.changeTag(0,'yes');
+                        return;
+                    }
+                    if(keycode == 78){
+                        this.changeTag(0,'no');
+                        return;
+                    }
+                    if(keycode == 80){
+                        this.changeTag(0,'pass');
                         return;
                     }
                     if ((keycode == 37) | (keycode == 38)) {
