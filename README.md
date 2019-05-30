@@ -1,3 +1,3 @@
-# Dn_tool
+# Tkinter_tool
 
-Dn_tool devlopment by TKinter
+Tkinter_tool devlopment by TKinter
